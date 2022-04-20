@@ -11,8 +11,8 @@ use progress::Progress;
 use crate::geometry::Scene;
 
 fn main() {
-	let width = 200;
-	let height = 100;
+	let width = 1280;
+	let height = 720;
 
 	let aspect_ratio = (height as f32 - 1.) / (width as f32 - 1.);
 
@@ -22,11 +22,11 @@ fn main() {
 	println!("Loading model");
 
 	let model = SolidObject::from_gltf(model)
-		.scale_to(width as f32, height as f32)
+		.scale(1000.)
 		.move_to(Vec3f::new(0., 10., 200.));
 	let ground = SolidObject::plane()
 		.scale(10000.)
-		.move_to(Vec3f::new(0., -10., 0.));
+		.move_to(Vec3f::new(0., -40., 0.));
 	let mut scene = Scene::new();
 	scene.add_object(model);
 	scene.add_object(ground);
@@ -64,10 +64,10 @@ fn main() {
 		let mut c = Colour::from_rgb(m, m, m) * Colour::from_rgb(1., 1., 1.)
 			+ Colour::from_rgb(t, t, t) * Colour::from_rgb(0.5, 0.7, 1.);
 
-		// TODO: Use bounding box for speed-up
 		if let Some((o, _)) = scene
 			.objects()
 			.iter()
+			.filter(|object| object.bounding.intersect(&r).is_some())
 			.flat_map(|object| {
 				object
 					.faces
