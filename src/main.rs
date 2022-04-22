@@ -33,8 +33,8 @@ fn main() {
 		.scale(10000.)
 		.move_to(Vec3f::new(0., -45., 0.));
 	let mut scene = Scene::new();
-	scene.add_object(model);
-	scene.add_object(ground);
+	scene.add_object(&model);
+	scene.add_object(&ground);
 
 	println!("Allocating image");
 

@@ -13,6 +13,13 @@ pub trait WithScale {
 	fn scale_to(self, x: f32, y: f32) -> Self;
 }
 
+pub trait Object: Sync + Send {
+	fn faces(&self) -> &Vec<Polygon3>;
+	fn bounding(&self) -> &BoundingBox;
+
+	fn boxed(&self) -> Box<dyn Object>;
+}
+
 #[derive(Debug, Clone)]
 pub struct BoundingBox(Vec3f, Vec3f);
 
@@ -107,6 +114,20 @@ impl WithScale for SolidObject {
 	}
 }
 
+impl Object for SolidObject {
+	fn faces(&self) -> &Vec<Polygon3> {
+		&self.faces
+	}
+
+	fn bounding(&self) -> &BoundingBox {
+		&self.bounding
+	}
+
+	fn boxed(&self) -> Box<dyn Object> {
+		Box::new(self.to_owned())
+	}
+}
+
 impl SolidObject {
 	fn update_bounding_box(&mut self) {
 		if self.faces.len() == 0 {
@@ -194,11 +215,11 @@ impl SolidObject {
 }
 
 pub struct Scene {
-	objects: Vec<SolidObject>,
+	objects: Vec<Box<dyn Object>>,
 }
 
 pub struct Hit<'a> {
-	pub object: &'a SolidObject,
+	pub object: &'a Box<dyn Object>,
 	pub polygon: &'a Polygon3,
 	pub point: Vec3f,
 }
@@ -210,19 +231,19 @@ impl Scene {
 		}
 	}
 
-	pub fn add_object(&mut self, object: SolidObject) {
-		self.objects.push(object);
+	pub fn add_object(&mut self, object: &dyn Object) {
+		self.objects.push(object.boxed());
 	}
 
 	pub fn hit(&self, ray: &Ray) -> Option<Hit> {
 		let hit_objects = self
 			.objects
 			.iter()
-			.filter(|object| object.bounding.intersect(ray).is_some());
+			.filter(|object| object.bounding().intersect(ray).is_some());
 
 		let hits = hit_objects.flat_map(|object| {
 			object
-				.faces
+				.faces()
 				.iter()
 				.filter_map(|polygon| polygon.intersect(ray).map(|point| (polygon, point)))
 				.map(|(polygon, point)| Hit {
