@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 gltf = "1"
 num = "0.4"
+rand = "0.8"
+rayon = "1.5"

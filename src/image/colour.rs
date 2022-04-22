@@ -15,47 +15,54 @@ impl Colour {
 	pub fn new() -> Self {
 		Self::default()
 	}
-}
 
-fn zip_with<F>(f: F, a: Colour, b: Colour) -> Colour
-where
-	F: Fn(f32, f32) -> f32,
-{
-	Colour {
-		r: f(a.r, b.r),
-		g: f(a.g, b.g),
-		b: f(a.b, b.b),
+	pub fn clamp(self, min: f32, max: f32) -> Self {
+		Self {
+			r: self.r.clamp(min, max),
+			g: self.g.clamp(min, max),
+			b: self.b.clamp(min, max),
+		}
 	}
 }
 
-impl Add for Colour {
-	type Output = Self;
+macro_rules! impl_f32_math {
+	($f:tt, $fn:tt) => {
+		impl $f<f32> for Colour {
+			type Output = Self;
 
-	fn add(self, other: Self) -> Self {
-		zip_with(f32::add, self, other)
-	}
+			fn $fn(self, other: f32) -> Self {
+				Self {
+					r: f32::$fn(self.r, other),
+					g: f32::$fn(self.g, other),
+					b: f32::$fn(self.b, other),
+				}
+			}
+		}
+	};
 }
 
-impl Sub for Colour {
-	type Output = Self;
+macro_rules! impl_self_math {
+	($f:tt, $fn:tt) => {
+		impl $f<Colour> for Colour {
+			type Output = Self;
 
-	fn sub(self, other: Self) -> Self {
-		zip_with(f32::sub, self, other)
-	}
+			fn $fn(self, other: Colour) -> Self {
+				Self {
+					r: f32::$fn(self.r, other.r),
+					g: f32::$fn(self.g, other.g),
+					b: f32::$fn(self.b, other.b),
+				}
+			}
+		}
+	};
 }
 
-impl Mul for Colour {
-	type Output = Self;
+impl_f32_math!(Add, add);
+impl_f32_math!(Sub, sub);
+impl_f32_math!(Mul, mul);
+impl_f32_math!(Div, div);
 
-	fn mul(self, other: Self) -> Self {
-		zip_with(f32::mul, self, other)
-	}
-}
-
-impl Div for Colour {
-	type Output = Self;
-
-	fn div(self, other: Self) -> Self {
-		zip_with(f32::div, self, other)
-	}
-}
+impl_self_math!(Add, add);
+impl_self_math!(Sub, sub);
+impl_self_math!(Mul, mul);
+impl_self_math!(Div, div);

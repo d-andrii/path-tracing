@@ -7,11 +7,17 @@ pub struct Polygon3 {
 	pub a: Vec3f,
 	pub b: Vec3f,
 	pub c: Vec3f,
+	pub normal: Vec3f,
 }
 
 impl Polygon3 {
 	pub fn new(a: Vec3f, b: Vec3f, c: Vec3f) -> Self {
-		Self { a, b, c }
+		Self {
+			a,
+			b,
+			c,
+			normal: (a - b).cross(a - c).unit(),
+		}
 	}
 
 	pub fn scale(self, n: f32) -> Self {
@@ -19,6 +25,7 @@ impl Polygon3 {
 			a: self.a * n,
 			b: self.b * n,
 			c: self.c * n,
+			normal: self.normal,
 		}
 	}
 }
@@ -31,6 +38,7 @@ impl Add<Vec3f> for Polygon3 {
 			a: self.a + other,
 			b: self.b + other,
 			c: self.c + other,
+			normal: self.normal,
 		}
 	}
 }

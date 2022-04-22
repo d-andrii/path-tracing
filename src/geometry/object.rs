@@ -207,7 +207,6 @@ impl Scene {
 	}
 
 	pub fn add_object(&mut self, object: SolidObject) {
-		println!("{:#?}", object);
 		self.objects.push(object);
 	}
 
