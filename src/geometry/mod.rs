@@ -10,6 +10,9 @@ pub use ray::*;
 mod object;
 pub use object::*;
 
+mod scene;
+pub use scene::*;
+
 pub trait Intersect<T> {
 	const EPSILON: f32 = 0.0001;
 

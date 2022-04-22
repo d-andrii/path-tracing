@@ -10,10 +10,10 @@ use geometry::{Ray, SolidObject, Vec3f, WithOrigin, WithScale};
 use image::{Colour, Image, ImageFormat};
 use rand::Rng;
 
-use crate::geometry::Scene;
+use crate::geometry::{Light, Scene};
 
 fn main() {
-	let samples_per_pixel = 20;
+	let samples_per_pixel = 50;
 	let max_depth = 30;
 
 	let width = 640;
@@ -26,15 +26,19 @@ fn main() {
 
 	println!("Loading model");
 
-	let model = SolidObject::from_gltf(model)
-		.scale(1500.)
-		.move_to(Vec3f::new(0., 10., 200.));
-	let ground = SolidObject::plane()
-		.scale(10000.)
-		.move_to(Vec3f::new(0., -45., 0.));
+	let mut model = SolidObject::from_gltf(model);
+	model.scale(100.);
+	model.move_to(Vec3f::new(0., 0., 15.));
+	let mut ground = SolidObject::plane();
+	ground.scale(10000.);
+	ground.move_to(Vec3f::new(0., -4., 0.));
+	let mut light = Light::plane();
+	light.scale(8.);
+	light.move_to(Vec3f::new(0., -3.5, 15.));
 	let mut scene = Scene::new();
-	scene.add_object(&model);
-	scene.add_object(&ground);
+	scene.add_object(Box::new(model));
+	scene.add_object(Box::new(ground));
+	scene.add_object(Box::new(light));
 
 	println!("Allocating image");
 

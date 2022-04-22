@@ -1,23 +1,89 @@
-use std::cmp::Ordering;
-
 use crate::image::Colour;
 
 use super::{Intersect, Polygon3, Ray, Vec3f};
 
-pub trait WithOrigin {
-	fn move_to(self, origin: Vec3f) -> Self;
+#[derive(Debug, Clone)]
+pub struct Emission {
+	pub colour: Colour,
 }
 
-pub trait WithScale {
-	fn scale(self, n: f32) -> Self;
-	fn scale_to(self, x: f32, y: f32) -> Self;
+pub trait WithOrigin: Object {
+	fn move_to(&mut self, origin: Vec3f) {
+		let center = self.bounding().0 + (self.bounding().1 - self.bounding().0) / 2.;
+
+		self.set_faces(
+			self.faces()
+				.iter()
+				.map(|f| {
+					Polygon3::new(
+						f.a - center + origin,
+						f.b - center + origin,
+						f.c - center + origin,
+					)
+				})
+				.collect(),
+		);
+
+		self.update_bounding_box();
+	}
+}
+
+pub trait WithScale: Object {
+	fn scale(&mut self, n: f32) {
+		self.set_faces(self.faces().iter().map(|x| x.scale(n)).collect());
+
+		self.set_bounding(BoundingBox(self.bounding().0 * n, self.bounding().1 * n));
+	}
+
+	fn scale_to(&mut self, x: f32, y: f32) {
+		let size = self.bounding().1 - self.bounding().0;
+		let min = f32::min(x / size.x, y / size.y);
+
+		self.scale(min);
+	}
 }
 
 pub trait Object: Sync + Send {
 	fn faces(&self) -> &Vec<Polygon3>;
 	fn bounding(&self) -> &BoundingBox;
 
-	fn boxed(&self) -> Box<dyn Object>;
+	fn set_faces(&mut self, faces: Vec<Polygon3>);
+	fn set_bounding(&mut self, bounding: BoundingBox);
+
+	fn update_bounding_box(&mut self) {
+		if self.faces().len() == 0 {
+			self.set_bounding(BoundingBox(Vec3f::new(0., 0., 0.), Vec3f::new(0., 0., 0.)));
+		} else {
+			let mut b = BoundingBox(self.faces()[0].a, self.faces()[0].a);
+			for f in self.faces() {
+				for p in [f.a, f.b, f.c] {
+					if p.x < b.0.x {
+						b.0.x = p.x
+					}
+					if p.y < b.0.y {
+						b.0.y = p.y
+					}
+					if p.z < b.0.z {
+						b.0.z = p.z
+					}
+					if p.x > b.1.x {
+						b.1.x = p.x
+					}
+					if p.y > b.1.y {
+						b.1.y = p.y
+					}
+					if p.z > b.1.z {
+						b.1.z = p.z
+					}
+				}
+			}
+			self.set_bounding(b);
+		}
+	}
+
+	fn emission(&self) -> Option<&Emission> {
+		None
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -77,42 +143,10 @@ impl Intersect<Ray> for BoundingBox {
 pub struct SolidObject {
 	pub faces: Vec<Polygon3>,
 	pub bounding: BoundingBox,
-	pub colour: Colour,
 }
 
-impl WithOrigin for SolidObject {
-	fn move_to(mut self, origin: Vec3f) -> Self {
-		let center = self.bounding.0 + (self.bounding.1 - self.bounding.0) / 2.;
-
-		for mut f in &mut self.faces {
-			f.a = f.a - center + origin;
-			f.b = f.b - center + origin;
-			f.c = f.c - center + origin;
-		}
-
-		self.update_bounding_box();
-
-		self
-	}
-}
-
-impl WithScale for SolidObject {
-	fn scale(mut self, n: f32) -> Self {
-		self.faces = self.faces.into_iter().map(|x| x.scale(n)).collect();
-
-		self.bounding.0 = self.bounding.0 * n;
-		self.bounding.1 = self.bounding.1 * n;
-
-		self
-	}
-
-	fn scale_to(self, x: f32, y: f32) -> Self {
-		let size = self.bounding.1 - self.bounding.0;
-		let min = f32::min(x / size.x, y / size.y);
-
-		self.scale(min)
-	}
-}
+impl WithOrigin for SolidObject {}
+impl WithScale for SolidObject {}
 
 impl Object for SolidObject {
 	fn faces(&self) -> &Vec<Polygon3> {
@@ -123,43 +157,16 @@ impl Object for SolidObject {
 		&self.bounding
 	}
 
-	fn boxed(&self) -> Box<dyn Object> {
-		Box::new(self.to_owned())
+	fn set_faces(&mut self, faces: Vec<Polygon3>) {
+		self.faces = faces;
+	}
+
+	fn set_bounding(&mut self, bounding: BoundingBox) {
+		self.bounding = bounding;
 	}
 }
 
 impl SolidObject {
-	fn update_bounding_box(&mut self) {
-		if self.faces.len() == 0 {
-			self.bounding = BoundingBox(Vec3f::new(0., 0., 0.), Vec3f::new(0., 0., 0.));
-		} else {
-			let mut b = BoundingBox(self.faces[0].a, self.faces[0].a);
-			for f in &self.faces {
-				for p in [f.a, f.b, f.c] {
-					if p.x < b.0.x {
-						b.0.x = p.x
-					}
-					if p.y < b.0.y {
-						b.0.y = p.y
-					}
-					if p.z < b.0.z {
-						b.0.z = p.z
-					}
-					if p.x > b.1.x {
-						b.1.x = p.x
-					}
-					if p.y > b.1.y {
-						b.1.y = p.y
-					}
-					if p.z > b.1.z {
-						b.1.z = p.z
-					}
-				}
-			}
-			self.bounding = b;
-		}
-	}
-
 	pub fn from_gltf(path: String) -> Self {
 		let (gltf, buffers, _) = gltf::import(path).expect("Cannot open model");
 
@@ -190,7 +197,6 @@ impl SolidObject {
 		Self {
 			faces,
 			bounding: BoundingBox(bound.min.into(), bound.max.into()),
-			colour: Colour::from_rgb(0.95, 0.95, 0.95),
 		}
 	}
 
@@ -209,85 +215,61 @@ impl SolidObject {
 				),
 			],
 			bounding: BoundingBox(Vec3f::new(0., 0., 0.), Vec3f::new(1., 0., 1.)),
-			colour: Colour::from_rgb(0.2, 0.2, 0.2),
 		}
 	}
 }
 
-pub struct Scene {
-	objects: Vec<Box<dyn Object>>,
+#[derive(Debug, Clone)]
+pub struct Light {
+	pub faces: Vec<Polygon3>,
+	pub bounding: BoundingBox,
+	pub emission: Emission,
 }
 
-pub struct Hit<'a> {
-	pub object: &'a Box<dyn Object>,
-	pub polygon: &'a Polygon3,
-	pub point: Vec3f,
+impl WithOrigin for Light {}
+impl WithScale for Light {}
+
+impl Object for Light {
+	fn faces(&self) -> &Vec<Polygon3> {
+		&self.faces
+	}
+
+	fn bounding(&self) -> &BoundingBox {
+		&self.bounding
+	}
+
+	fn set_faces(&mut self, faces: Vec<Polygon3>) {
+		self.faces = faces;
+	}
+
+	fn set_bounding(&mut self, bounding: BoundingBox) {
+		self.bounding = bounding;
+	}
+
+	fn emission(&self) -> Option<&Emission> {
+		Some(&self.emission)
+	}
 }
 
-impl Scene {
-	pub fn new() -> Self {
+impl Light {
+	pub fn plane() -> Self {
 		Self {
-			objects: Vec::new(),
-		}
-	}
-
-	pub fn add_object(&mut self, object: &dyn Object) {
-		self.objects.push(object.boxed());
-	}
-
-	pub fn hit(&self, ray: &Ray) -> Option<Hit> {
-		let hit_objects = self
-			.objects
-			.iter()
-			.filter(|object| object.bounding().intersect(ray).is_some());
-
-		let hits = hit_objects.flat_map(|object| {
-			object
-				.faces()
-				.iter()
-				.filter_map(|polygon| polygon.intersect(ray).map(|point| (polygon, point)))
-				.map(|(polygon, point)| Hit {
-					object,
-					polygon,
-					point,
-				})
-		});
-
-		hits.min_by(|x, y| {
-			let d = (x.point - ray.origin).len() - (y.point - ray.origin).len();
-			match (d < 0., d > 0.) {
-				(false, true) => Ordering::Greater,
-				(true, false) => Ordering::Less,
-				_ => Ordering::Equal,
-			}
-		})
-	}
-
-	pub fn get_colour(&self, ray: &Ray, depth: usize) -> Colour {
-		if depth == 0 {
-			return Colour::from_rgb(0., 0., 0.);
-		}
-
-		if let Some(hit) = self.hit(ray) {
-			#[cfg(feature = "hemi_shading")]
-			{
-				let r = Vec3f::rand_in_unit();
-				let t = hit.point
-					+ if r.dot(hit.polygon.normal) > 0. {
-						r
-					} else {
-						r * -1.
-					};
-				self.get_colour(&Ray::new(hit.point, t - hit.point), depth - 1) * 0.5
-			}
-			#[cfg(not(feature = "hemi_shading"))]
-			{
-				let t = hit.point + hit.polygon.normal + Vec3f::rand_in_unit();
-				self.get_colour(&Ray::new(hit.point, t - hit.point), depth - 1) * 0.5
-			}
-		} else {
-			let t = 0.5 * (ray.direction.y + 1.);
-			Colour::from_rgb(1., 1., 1.) * (1. - t) + Colour::from_rgb(0.5, 0.7, 1.) * t
+			faces: vec![
+				Polygon3::new(
+					Vec3f::new(0., 0., 0.),
+					Vec3f::new(1., 0., 0.),
+					Vec3f::new(0., 0., 1.),
+				),
+				Polygon3::new(
+					Vec3f::new(1., 0., 1.),
+					Vec3f::new(1., 0., 0.),
+					Vec3f::new(0., 0., 1.),
+				),
+			],
+			bounding: BoundingBox(Vec3f::new(0., 0., 0.), Vec3f::new(1., 0., 1.)),
+			emission: Emission {
+				colour: Colour::from_rgb(1., 1., 1.),
+			},
 		}
 	}
 }
