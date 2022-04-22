@@ -1,6 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 
 use num::Float;
+use rand::{distributions::uniform::SampleUniform, Rng};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vec3<T> {
@@ -11,14 +12,18 @@ pub struct Vec3<T> {
 
 impl<T> Vec3<T>
 where
-	T: Float,
+	T: Float + SampleUniform,
 {
 	pub fn new(x: T, y: T, z: T) -> Self {
 		Self { x, y, z }
 	}
 
+	pub fn len_sq(&self) -> T {
+		self.x * self.x + self.y * self.y + self.z * self.z
+	}
+
 	pub fn len(&self) -> T {
-		(self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+		self.len_sq().sqrt()
 	}
 
 	pub fn unit(self) -> Self {
@@ -27,6 +32,24 @@ where
 			x: self.x / l,
 			y: self.y / l,
 			z: self.z / l,
+		}
+	}
+
+	pub fn rand(min: T, max: T) -> Self {
+		let mut rng = rand::thread_rng();
+		Self::new(
+			rng.gen_range(min..max),
+			rng.gen_range(min..max),
+			rng.gen_range(min..max),
+		)
+	}
+
+	pub fn rand_in_unit() -> Self {
+		loop {
+			let v = Self::rand(-T::one(), T::one());
+			if v.len_sq() < T::one() {
+				return v;
+			}
 		}
 	}
 }
@@ -115,7 +138,7 @@ where
 
 impl<T> From<[T; 3]> for Vec3<T>
 where
-	T: Float + Copy,
+	T: Float + SampleUniform + Copy,
 {
 	fn from(p: [T; 3]) -> Self {
 		Self::new(p[0], p[1], p[2])

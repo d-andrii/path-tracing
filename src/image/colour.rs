@@ -23,6 +23,14 @@ impl Colour {
 			b: self.b.clamp(min, max),
 		}
 	}
+
+	pub fn sqrt(self) -> Self {
+		Self {
+			r: self.r.sqrt(),
+			g: self.g.sqrt(),
+			b: self.b.sqrt(),
+		}
+	}
 }
 
 macro_rules! impl_f32_math {

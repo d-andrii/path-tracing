@@ -11,7 +11,7 @@ mod object;
 pub use object::*;
 
 pub trait Intersect<T> {
-	const EPSILON: f32 = 0.0000001;
+	const EPSILON: f32 = 0.0001;
 
 	fn intersect(&self, other: &T) -> Option<Vec3f>;
 }

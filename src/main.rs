@@ -4,16 +4,17 @@ mod geometry;
 mod image;
 // mod progress;
 
-use std::{cmp::Ordering, f32::consts::PI, fs::File, io::Write};
+use std::{f32::consts::PI, fs::File, io::Write};
 
-use geometry::{Intersect, Ray, SolidObject, Vec3f, WithOrigin, WithScale};
+use geometry::{Ray, SolidObject, Vec3f, WithOrigin, WithScale};
 use image::{Colour, Image, ImageFormat};
 use rand::Rng;
 
 use crate::geometry::Scene;
 
 fn main() {
-	let samples_per_pixel = 10;
+	let samples_per_pixel = 20;
+	let max_depth = 30;
 
 	let width = 640;
 	let height = 320;
@@ -26,11 +27,11 @@ fn main() {
 	println!("Loading model");
 
 	let model = SolidObject::from_gltf(model)
-		.scale(1000.)
+		.scale(1500.)
 		.move_to(Vec3f::new(0., 10., 200.));
 	let ground = SolidObject::plane()
 		.scale(10000.)
-		.move_to(Vec3f::new(0., -40., 0.));
+		.move_to(Vec3f::new(0., -45., 0.));
 	let mut scene = Scene::new();
 	scene.add_object(model);
 	scene.add_object(ground);
@@ -58,7 +59,7 @@ fn main() {
 
 	println!("Processing pixels");
 
-	let pixesl: Vec<_> = image
+	let pixels: Vec<_> = image
 		.coordinates()
 		.par_bridge()
 		.into_par_iter()
@@ -71,55 +72,19 @@ fn main() {
 				let r2: f32 = rng.gen_range(0.0..1.0);
 				let p = p0 + qx * (x as f32 + r1) + qy * (y as f32 + r2);
 
-				let r = Ray {
-					origin,
-					direction: p.unit(),
-				};
+				let r = Ray::new(origin, p.unit());
 
-				// TODO: Make less confusing
-				if let Some((_object, polygon, _point)) = scene
-					.objects()
-					.iter()
-					.filter(|object| object.bounding.intersect(&r).is_some())
-					.flat_map(|object| {
-						object
-							.faces
-							.iter()
-							.filter_map(|polygon| {
-								polygon.intersect(&r).map(|point| (polygon, point))
-							})
-							.map(|(polygon, point)| (object.clone(), polygon, point))
-					})
-					.min_by(|(_, _, x), (_, _, y)| {
-						let d = (*x - origin).len() - (*y - origin).len();
-						match (d < 0., d > 0.) {
-							(false, true) => Ordering::Greater,
-							(true, false) => Ordering::Less,
-							_ => Ordering::Equal,
-						}
-					}) {
-					// c = o.colour.clone();
-					c = c + Colour::from_rgb(
-						polygon.normal.x + 1.,
-						polygon.normal.y + 1.,
-						polygon.normal.z + 1.,
-					) * 0.5;
-				} else {
-					let t = 0.5 * (r.direction.y + 1.);
-					c = c
-						+ (Colour::from_rgb(1., 1., 1.) * (1. - t)
-							+ Colour::from_rgb(0.5, 0.7, 1.) * t);
-				}
+				c = c + scene.get_colour(&r, max_depth);
 			}
 
 			let i = 1. / samples_per_pixel as f32;
-			(x, y, (c * i).clamp(0., 0.999))
+			(x, y, (c * i).sqrt().clamp(0., 0.999))
 		})
 		.collect();
 
 	println!("Setting image buffer");
 
-	for (x, y, c) in pixesl {
+	for (x, y, c) in pixels {
 		image.set_pixel(x, y, c);
 	}
 
