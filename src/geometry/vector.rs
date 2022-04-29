@@ -52,6 +52,10 @@ where
 			}
 		}
 	}
+
+	pub fn reflect(self, n: Vec3<T>) -> Self {
+		self - (n * self.dot(n)) * (T::one() + T::one())
+	}
 }
 
 impl<T> Add for Vec3<T>

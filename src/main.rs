@@ -2,6 +2,7 @@ use rayon::prelude::*;
 
 mod geometry;
 mod image;
+mod material;
 // mod progress;
 
 use std::{f32::consts::PI, fs::File, io::Write};
@@ -26,9 +27,13 @@ fn main() {
 
 	println!("Loading model");
 
-	let mut model = SolidObject::from_gltf(model);
-	model.scale(100.);
-	model.move_to(Vec3f::new(0., 0., 15.));
+	let mut model1 = SolidObject::from_gltf(model.clone());
+	model1.scale(100.);
+	model1.move_to(Vec3f::new(0., 0., 15.));
+	let mut model2 = SolidObject::from_gltf(model.clone());
+	model2.scale(100.);
+	model2.move_to(Vec3f::new(-4.4, 0., 15.));
+	model2.material.metalic = 1.;
 	let mut ground = SolidObject::plane();
 	ground.scale(10000.);
 	ground.move_to(Vec3f::new(0., -4., 0.));
@@ -36,7 +41,8 @@ fn main() {
 	light.scale(8.);
 	light.move_to(Vec3f::new(0., -3.5, 15.));
 	let mut scene = Scene::new();
-	scene.add_object(Box::new(model));
+	scene.add_object(Box::new(model1));
+	scene.add_object(Box::new(model2));
 	scene.add_object(Box::new(ground));
 	scene.add_object(Box::new(light));
 

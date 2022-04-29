@@ -59,24 +59,15 @@ impl Scene {
 		}
 
 		if let Some(hit) = self.hit(ray) {
-			if let Some(emission) = hit.object.emission() {
-				return emission.colour.clone();
-			}
-			#[cfg(feature = "hemi_shading")]
-			{
-				let r = Vec3f::rand_in_unit();
-				let t = hit.point
-					+ if r.dot(hit.polygon.normal) > 0. {
-						r
-					} else {
-						r * -1.
-					};
-				self.get_colour(&Ray::new(hit.point, t - hit.point), depth - 1) * 0.5
-			}
-			#[cfg(not(feature = "hemi_shading"))]
-			{
-				let t = hit.point + hit.polygon.normal + Vec3f::rand_in_unit();
-				self.get_colour(&Ray::new(hit.point, t - hit.point), depth - 1) * 0.5
+			if let Some(material) = hit.object.material() {
+				let (scattered, colour) = material.get_scattered(ray, &hit);
+				if let Some(scattered) = scattered {
+					colour * self.get_colour(&scattered, depth - 1)
+				} else {
+					colour
+				}
+			} else {
+				Colour::from_rgb(0., 0., 0.)
 			}
 		} else {
 			let t = 0.5 * (ray.direction.y + 1.);

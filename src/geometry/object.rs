@@ -1,11 +1,6 @@
-use crate::image::Colour;
+use crate::{image::Colour, material::Material};
 
 use super::{Intersect, Polygon3, Ray, Vec3f};
-
-#[derive(Debug, Clone)]
-pub struct Emission {
-	pub colour: Colour,
-}
 
 pub trait WithOrigin: Object {
 	fn move_to(&mut self, origin: Vec3f) {
@@ -81,7 +76,7 @@ pub trait Object: Sync + Send {
 		}
 	}
 
-	fn emission(&self) -> Option<&Emission> {
+	fn material(&self) -> Option<&Material> {
 		None
 	}
 }
@@ -141,6 +136,7 @@ impl Intersect<Ray> for BoundingBox {
 
 #[derive(Debug, Clone)]
 pub struct SolidObject {
+	pub material: Material,
 	pub faces: Vec<Polygon3>,
 	pub bounding: BoundingBox,
 }
@@ -163,6 +159,10 @@ impl Object for SolidObject {
 
 	fn set_bounding(&mut self, bounding: BoundingBox) {
 		self.bounding = bounding;
+	}
+
+	fn material(&self) -> Option<&Material> {
+		Some(&self.material)
 	}
 }
 
@@ -197,6 +197,13 @@ impl SolidObject {
 		Self {
 			faces,
 			bounding: BoundingBox(bound.min.into(), bound.max.into()),
+			material: Material {
+				albedo: Colour::from_rgb(0.8, 0.8, 0.8),
+				specular: 0.,
+				metalic: 0.,
+				roughness: 0.,
+				emission: 0.,
+			},
 		}
 	}
 
@@ -215,6 +222,13 @@ impl SolidObject {
 				),
 			],
 			bounding: BoundingBox(Vec3f::new(0., 0., 0.), Vec3f::new(1., 0., 1.)),
+			material: Material {
+				albedo: Colour::from_rgb(0.6, 0.6, 0.6),
+				specular: 0.,
+				metalic: 0.,
+				roughness: 0.,
+				emission: 0.,
+			},
 		}
 	}
 }
@@ -223,7 +237,7 @@ impl SolidObject {
 pub struct Light {
 	pub faces: Vec<Polygon3>,
 	pub bounding: BoundingBox,
-	pub emission: Emission,
+	pub material: Material,
 }
 
 impl WithOrigin for Light {}
@@ -246,8 +260,8 @@ impl Object for Light {
 		self.bounding = bounding;
 	}
 
-	fn emission(&self) -> Option<&Emission> {
-		Some(&self.emission)
+	fn material(&self) -> Option<&Material> {
+		Some(&self.material)
 	}
 }
 
@@ -267,8 +281,12 @@ impl Light {
 				),
 			],
 			bounding: BoundingBox(Vec3f::new(0., 0., 0.), Vec3f::new(1., 0., 1.)),
-			emission: Emission {
-				colour: Colour::from_rgb(1., 1., 1.),
+			material: Material {
+				albedo: Colour::from_rgb(1., 1., 1.),
+				emission: 1.,
+				metalic: 0.,
+				roughness: 0.,
+				specular: 0.,
 			},
 		}
 	}
