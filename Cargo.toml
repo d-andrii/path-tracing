@@ -11,5 +11,7 @@ hemi_shading = []
 [dependencies]
 gltf = "1"
 num = "0.4"
+pixels = "0.9"
 rand = "0.8"
 rayon = "1.5"
+winit = "0.26"

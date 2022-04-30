@@ -43,4 +43,21 @@ impl Image {
 	pub fn get_pixel(&self, x: ImageIndexCapacity, y: ImageIndexCapacity) -> &Colour {
 		&self.data[(x + self.width * y) as usize]
 	}
+
+	pub fn into_u8(&self) -> Vec<u8> {
+		let mut data: Vec<u8> = vec![0; (self.width * self.height * 4) as usize];
+
+		let row_bytes = self.width * 4;
+
+		for (x, y) in self.coordinates() {
+			let p = (y * row_bytes + x * 4) as usize;
+			let colour = self.get_pixel(x, y);
+			data[p] = (255. * colour.r) as u8;
+			data[p + 1] = (255. * colour.g) as u8;
+			data[p + 2] = (255. * colour.b) as u8;
+			data[p + 3] = 255;
+		}
+
+		data
+	}
 }

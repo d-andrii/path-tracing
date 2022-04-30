@@ -167,8 +167,8 @@ impl Object for SolidObject {
 }
 
 impl SolidObject {
-	pub fn from_gltf(path: String) -> Self {
-		let (gltf, buffers, _) = gltf::import(path).expect("Cannot open model");
+	pub fn from_gltf<S: AsRef<str>>(path: S) -> Self {
+		let (gltf, buffers, _) = gltf::import(path.as_ref()).expect("Cannot open model");
 
 		let mesh = gltf.meshes().next().expect("No mesh in model");
 		let primitive = mesh.primitives().next().expect("No primitive in model");
