@@ -23,11 +23,9 @@ use std::{
 	thread,
 };
 
-use geometry::{Ray, SolidObject, Vec3f, WithOrigin, WithScale};
+use geometry::{Light, Ray, Scene, SolidObject, Vec3f, WithOrigin, WithScale};
 use image::{Colour, Image, ImageFormat};
-use rand::Rng;
-
-use crate::geometry::{Light, Scene};
+use rand::{prelude::SliceRandom, Rng};
 
 const HEIGHT: u32 = 320;
 const WIDTH: u32 = 640;
@@ -100,46 +98,48 @@ fn main() {
 
 	println!("Creating window");
 
-	let image_cl = image.clone();
 	let running = Arc::new(AtomicBool::new(true));
-	let running_cl = running.clone();
 
-	thread::spawn(move || {
-		println!("Processing pixels");
+	{
+		let image = image.clone();
+		let running = running.clone();
+		thread::spawn(move || {
+			println!("Processing pixels");
 
-		let iter = image_cl.read().unwrap().coordinates();
+			let mut iter: Vec<(u32, u32)> = image.read().unwrap().coordinates().collect();
+			iter.shuffle(&mut rand::thread_rng());
 
-		iter.par_bridge().into_par_iter().for_each(|(x, y)| {
-			let mut rng = rand::thread_rng();
-			let mut c = Colour::from_rgb(0., 0., 0.);
+			iter.iter().par_bridge().into_par_iter().for_each(|(x, y)| {
+				let mut rng = rand::thread_rng();
+				let mut c = Colour::from_rgb(0., 0., 0.);
 
-			for _ in 0..SAMPLES_PER_PIXEL {
-				let r1: f32 = rng.gen_range(0.0..1.0);
-				let r2: f32 = rng.gen_range(0.0..1.0);
-				let p = p0 + qx * (x as f32 + r1) + qy * (y as f32 + r2);
+				for _ in 0..SAMPLES_PER_PIXEL {
+					let r1: f32 = rng.gen_range(0.0..1.0);
+					let r2: f32 = rng.gen_range(0.0..1.0);
+					let p = p0 + qx * (*x as f32 + r1) + qy * (*y as f32 + r2);
 
-				let r = Ray::new(origin, p.unit());
+					let r = Ray::new(origin, p.unit());
 
-				c = c + scene.get_colour(&r, MAX_DEPTH);
-			}
+					c = c + scene.get_colour(&r, MAX_DEPTH) / SAMPLES_PER_PIXEL as f32;
+				}
 
-			let i = 1. / SAMPLES_PER_PIXEL as f32;
-			image_cl
-				.write()
-				.unwrap()
-				.set_pixel(x, y, (c * i).sqrt().clamp(0., 0.999));
+				image
+					.write()
+					.unwrap()
+					.set_pixel(*x, *y, (c).sqrt().clamp(0., 0.999));
 
-			window.request_redraw();
+				window.request_redraw();
+			});
+
+			println!("Encoding image");
+			let data = image::formats::Bmp::encode(&image.read().unwrap()).unwrap();
+
+			let mut file = File::create("temp.bmp").unwrap();
+			file.write_all(&data).unwrap();
+
+			running.store(false, Ordering::Relaxed);
 		});
-
-		println!("Encoding image");
-		let data = image::formats::Bmp::encode(&image_cl.read().unwrap()).unwrap();
-
-		let mut file = File::create("temp.bmp").unwrap();
-		file.write_all(&data).unwrap();
-
-		running_cl.store(false, Ordering::Relaxed);
-	});
+	}
 
 	event_loop.run(move |event, _, control_flow| {
 		if let Event::RedrawRequested(_) = event {

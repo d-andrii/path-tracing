@@ -12,6 +12,6 @@ hemi_shading = []
 gltf = "1"
 num = "0.4"
 pixels = "0.9"
-rand = "0.8"
+rand = { version = "0.8", features = ["small_rng"] }
 rayon = "1.5"
 winit = "0.26"
